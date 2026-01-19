@@ -354,7 +354,7 @@ export async function startBackend(setPort?: (port: number) => void): Promise<an
 
             healthCheckInterval = setInterval(() => {
                 attempts++;
-                const healthUrl = `http://127.0.0.1:${port}/health`;
+                const healthUrl = `http://127.0.0.1:${port}/api/health`;
                 log.debug(`Health check attempt ${attempts}/${maxAttempts}: ${healthUrl}`);
 
                 const req = http.get(healthUrl, { timeout: 1000 }, (res) => {
