@@ -1,88 +1,22 @@
-# 後端 API 參考
+# 嵌入式後端 API 參考
 
-> 本文件說明 Eigent 後端 API 的端點、請求格式與回應結構。
+> 本文件說明 Eigent 嵌入式後端（`backend/`）的 API 端點、請求格式與回應結構。
 
 ## API 概述
 
-Eigent 有兩套後端：
+**嵌入式後端**（Embedded Backend）是 Eigent 的多智能體任務執行引擎，由 Electron 自動啟動。
 
-| 後端 | 位置 | 用途 | 認證方式 |
-|-----|------|------|---------|
-| **嵌入式後端** | `backend/` | 多智能體執行引擎 | 無（本地通訊） |
-| **本地部署後端** | `server/` | 完整 API（含用戶管理） | JWT Bearer Token |
+| 項目 | 說明 |
+|-----|------|
+| **位置** | `backend/` |
+| **啟動方式** | 由 Electron 自動啟動（動態埠，預設從 5001 起） |
+| **認證方式** | 無（本地通訊，透過 Electron IPC 取得埠號） |
+| **主要功能** | 多智能體任務執行、CAMEL Workforce 協調 |
+| **運行模式** | Cloud-Connected 和 Local Deployment 兩種模式下都會運行 |
 
----
-
-## 認證 API
-
-### POST /api/login
-
-使用 Email 和密碼登入。
-
-**請求**：
-```json
-{
-  "email": "user@example.com",
-  "password": "your_password"
-}
-```
-
-**回應**：
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "email": "user@example.com",
-  "username": "user",
-  "user_id": 1
-}
-```
-
-**錯誤碼**：
-- `code: 10` - 帳號或密碼錯誤
-
----
-
-### POST /api/register
-
-註冊新帳號（僅本地部署模式）。
-
-**請求**：
-```json
-{
-  "email": "user@example.com",
-  "password": "your_password",
-  "invite_code": ""
-}
-```
-
-**回應**：
-```json
-{
-  "status": "success"
-}
-```
-
-**錯誤碼**：
-- `code: 10` - Email 已被註冊
-
----
-
-### POST /api/login-by_stack
-
-使用 Stack Auth OAuth Token 登入。
-
-**請求**：
-```
-POST /api/login-by_stack?token=xxx
-```
-
-**回應**：
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "email": "user@example.com"
-}
-```
+**相關文件**：
+- [Local Server 和 Cloud Service API](./SERVER_API.md) - 用戶管理、設定管理、資料持久化
+- [專案架構總覽](./ARCHITECTURE.md)
 
 ---
 
@@ -199,107 +133,93 @@ Human-in-the-Loop 回覆。
 
 ---
 
-## 模型 API
+## 模型驗證 API
 
-### GET /api/providers
+### POST /model/validate
 
-取得已設定的模型供應商清單。
+驗證模型配置和工具呼叫支援。
 
-**參數**：
-- `prefer=true` - 只返回偏好的供應商
+**請求**：
+```json
+{
+  "model_platform": "OPENAI",
+  "model_type": "GPT_4O_MINI",
+  "api_key": "sk-xxx",
+  "url": null,
+  "model_config_dict": null,
+  "extra_params": null
+}
+```
 
 **回應**：
 ```json
 {
-  "items": [
+  "is_valid": true,
+  "is_tool_calls": true,
+  "error_code": null,
+  "error": null,
+  "message": "Validation Success"
+}
+```
+
+---
+
+## 工具管理 API
+
+### GET /tools/available
+
+列出所有可安裝的 MCP 工具。
+
+**回應**：
+```json
+{
+  "tools": [
     {
-      "id": 1,
-      "provider_name": "openai",
-      "model_type": "gpt-4.1",
-      "api_key": "sk-xxx",
-      "endpoint_url": null
+      "name": "notion",
+      "display_name": "Notion MCP",
+      "description": "Notion workspace integration",
+      "toolkit_class": "NotionMCPToolkit",
+      "requires_auth": true
     }
   ]
 }
 ```
 
----
+### POST /install/tool/{tool}
 
-### POST /api/provider
+安裝指定的工具。
 
-新增模型供應商。
+### DELETE /uninstall/tool/{tool}
 
-**請求**：
-```json
-{
-  "provider_name": "openai",
-  "model_type": "gpt-4.1",
-  "api_key": "sk-xxx",
-  "endpoint_url": null,
-  "prefer": true
-}
-```
+卸載指定的工具。
 
----
+### GET /oauth/status/{provider}
 
-## 設定 API
+取得 OAuth 狀態。
 
-### GET /api/configs
+### POST /oauth/cancel/{provider}
 
-取得設定清單。
+取消 OAuth 授權。
 
-**回應**：
-```json
-[
-  {
-    "id": 1,
-    "config_group": "search",
-    "config_name": "GOOGLE_API_KEY",
-    "config_value": "xxx"
-  }
-]
-```
+### POST /browser/login
 
----
+開啟瀏覽器進行登入。
 
-### POST /api/configs
+### GET /browser/cookies
 
-新增設定。
+列出所有 Cookie 網域。
 
-**請求**：
-```json
-{
-  "config_group": "search",
-  "config_name": "GOOGLE_API_KEY",
-  "config_value": "xxx"
-}
-```
+### GET /browser/cookies/{domain}
 
----
+取得指定網域的 Cookie。
 
-## MCP 管理 API
+### DELETE /browser/cookies/{domain}
 
-### GET /api/mcps
+刪除指定網域的 Cookie。
 
-取得已安裝的 MCP 工具清單。
+### DELETE /browser/cookies
 
----
-
-### POST /api/mcp/install
-
-安裝 MCP 工具。
-
-**請求**：
-```json
-{
-  "name": "notion",
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-notion"],
-  "env": {
-    "NOTION_TOKEN": "xxx"
-  }
-}
-```
+刪除所有 Cookie。
 
 ---
 
@@ -353,6 +273,7 @@ Human-in-the-Loop 回覆。
 
 ## 相關文件
 
+- [Local Server 和 Cloud Service API](./SERVER_API.md)
 - [專案架構總覽](./ARCHITECTURE.md)
 - [前端架構說明](./FRONTEND.md)
 - [Electron IPC 通道](./ELECTRON_IPC.md)

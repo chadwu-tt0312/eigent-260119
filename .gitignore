@@ -62,3 +62,4 @@ resources/prebuilt/cache/
 
 session-*
 src/api/http copy.ts
+pass/

@@ -30,9 +30,24 @@
 
 Zustand Store，管理單一任務的完整狀態（訊息、Agent、進度等）。每個專案可有多個 ChatStore 實例。
 
+### Cloud Service（雲端服務）
+
+Eigent Cloud API 服務，位於 `https://dev.eigent.ai`。
+
+- **位置**：`https://dev.eigent.ai`
+- **別名**：Eigent Cloud API、Cloud Control Service
+- **功能**：在 Cloud-Connected 模式下提供帳號/授權、設定與資料管理、部分雲端代理能力
+- **API 端點**：與 Local Server 相同的 `/api/*` 端點，但資料存於雲端
+- **特有功能**：接收嵌入式後端同步的任務步驟（`POST /api/chat/steps`）、提供搜尋代理（`GET /api/proxy/google`）
+
 ### Cloud-Connected Mode
 
 雲端連線模式。前端連接 Eigent Cloud 服務進行認證，多智能體執行仍在本地進行。
+
+**架構說明**：
+- 前端透過 `VITE_PROXY_URL` 連接到 Cloud Service（`https://dev.eigent.ai`）
+- 嵌入式後端（`backend/`）仍在本機運行，負責任務執行
+- 嵌入式後端透過 `SERVER_URL`（預設為 `https://dev.eigent.ai/api`）將任務步驟同步到雲端
 
 ---
 
@@ -66,9 +81,29 @@ Zustand Store，管理單一任務的完整狀態（訊息、Agent、進度等�
 
 Eigent 自訂的 CAMEL ChatAgent 子類別。每當執行步驟或調用工具時，會自動將狀態推送到 SSE 佇列，實現即時監控。
 
+### Local Server（本地服務）
+
+本地部署的控制面服務，位於 `server/` 目錄。
+
+- **位置**：`server/`
+- **別名**：Local Control Service、本地部署後端
+- **功能**：本地資料與帳號/設定的控制面（control plane）
+- **主要模組**：
+  - 用戶管理：`POST /api/register`、`POST /api/login`
+  - 設定管理：`/api/providers`、`/api/configs`、`/api/mcps`
+  - 資料持久化：`/api/chat/history`、`/api/chat/steps`
+  - 代理服務：`/api/proxy/google`、`/api/proxy/exa`
+- **資料庫**：PostgreSQL（Docker 或本地安裝）
+- **啟動方式**：Docker Compose 或 Source Code（`server/start_server.ps1`）
+
 ### Local Deployment Mode
 
 本地部署模式。完全在本地運行，包含獨立的 PostgreSQL 資料庫，不依賴雲端服務。
+
+**架構說明**：
+- 前端透過 `VITE_PROXY_URL` 連接到 Local Server（`http://localhost:3001`）
+- 嵌入式後端（`backend/`）仍在本機運行，負責任務執行
+- Local Server 提供完整的資料管理功能，資料存於本地 PostgreSQL
 
 ---
 

@@ -50,7 +50,7 @@ export const useInstallationSetup = () => {
 
           // Verify backend is actually responding
           const response = await fetch(
-            `http://localhost:${backendPort}/api/health`
+            `http://localhost:${backendPort}/health`
           ).catch(() => null);
           if (response && response.ok) {
             console.log(

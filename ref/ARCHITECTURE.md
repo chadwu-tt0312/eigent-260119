@@ -139,42 +139,62 @@ eigent-260119/
 
 ### 1. Cloud-Connected (雲端連線)
 
-```
-┌──────────────┐     HTTPS      ┌──────────────────┐
-│   Electron   │ ─────────────► │  Eigent Cloud    │
-│   Frontend   │                │  (dev.eigent.ai) │
-└──────────────┘                └──────────────────┘
-       │
-       │ localhost
-       ▼
-┌──────────────┐
-│   backend/   │ ← 嵌入式 Python 後端 (多智能體執行)
-│  (FastAPI)   │
-└──────────────┘
+```mermaid
+flowchart TB
+    Electron[Electron App]
+    EmbeddedBackend[嵌入式後端<br/>backend/]
+    CloudService[Cloud Service<br/>dev.eigent.ai]
+    
+    Electron -->|HTTPS<br/>/api/*| CloudService
+    Electron -->|localhost<br/>/chat SSE| EmbeddedBackend
+    EmbeddedBackend -->|POST /api/chat/steps<br/>同步任務步驟| CloudService
 ```
 
 - **用途**：快速體驗，無需設定資料庫
-- **認證**：使用 Eigent Cloud 帳號
-- **環境變數**：`VITE_USE_LOCAL_PROXY=false`
+- **認證**：使用 Eigent Cloud 帳號（OAuth 或 Email + 密碼）
+- **環境變數**：`VITE_USE_LOCAL_PROXY=false`、`VITE_PROXY_URL=https://dev.eigent.ai`
+- **資料流向**：
+  - 前端 `/api/*` 請求 → Cloud Service（帳號、設定、資料管理）
+  - 前端 `/chat` SSE → 嵌入式後端（任務執行）
+  - 嵌入式後端 → Cloud Service（任務步驟同步，需設定 `SERVER_URL`）
 
 ### 2. Local Deployment (本地部署)
 
-```
-┌──────────────┐    localhost    ┌──────────────────┐
-│   Electron   │ ─────────────► │    server/       │
-│   Frontend   │                │   (FastAPI)      │
-└──────────────┘                └────────┬─────────┘
-                                         │
-                                         ▼
-                                ┌──────────────────┐
-                                │   PostgreSQL     │
-                                │   (Docker)       │
-                                └──────────────────┘
+```mermaid
+flowchart TB
+    Electron[Electron App]
+    EmbeddedBackend[嵌入式後端<br/>backend/]
+    LocalServer[Local Server<br/>server/]
+    Postgres[PostgreSQL<br/>Docker]
+    
+    Electron -->|localhost<br/>/api/*| LocalServer
+    Electron -->|localhost<br/>/chat SSE| EmbeddedBackend
+    LocalServer -->|資料庫連線| Postgres
 ```
 
 - **用途**：完全離線、資料隱私
-- **認證**：本地註冊帳號
-- **環境變數**：`VITE_USE_LOCAL_PROXY=true`
+- **認證**：本地註冊帳號（Email + 密碼）
+- **環境變數**：`VITE_USE_LOCAL_PROXY=true`、`VITE_PROXY_URL=http://localhost:3001`
+- **資料流向**：
+  - 前端 `/api/*` 請求 → Local Server（帳號、設定、資料管理）
+  - 前端 `/chat` SSE → 嵌入式後端（任務執行）
+  - Local Server → PostgreSQL（資料持久化）
+  - 嵌入式後端不會同步步驟到雲端（`SERVER_URL` 未設定）
+
+---
+
+## 兩種模式差異對照
+
+| 項目 | Cloud-Connected | Local Deployment |
+|-----|----------------|------------------|
+| **前端 API 目標** | Cloud Service (`https://dev.eigent.ai`) | Local Server (`http://localhost:3001`) |
+| **嵌入式後端** | ✅ 自動啟動（本機執行任務） | ✅ 自動啟動（本機執行任務） |
+| **Local Server** | ❌ 不需要 | ✅ 需要啟動（Docker 或 Source Code） |
+| **資料儲存** | 雲端（除非另行設定） | 本地 PostgreSQL |
+| **帳號註冊** | Eigent Cloud 註冊 | 本地註冊（`POST /api/register`） |
+| **OAuth 登入** | ✅ 支援（Google、GitHub） | ❌ 不支援 |
+| **任務步驟同步** | ✅ 同步到 Cloud Service（需設定 `SERVER_URL`） | ❌ 不同步（`SERVER_URL` 未設定） |
+| **搜尋代理** | ✅ 可使用雲端代理 | ✅ 需配置 API key 或使用本地代理 |
 
 ---
 
@@ -186,13 +206,13 @@ eigent-260119/
 sequenceDiagram
     participant U as 使用者
     participant R as React Frontend
-    participant B as Python Backend
+    participant EB as 嵌入式後端<br/>backend/
     participant W as CAMEL Workforce
     participant A as AI Agents
 
     U->>R: 輸入任務描述
-    R->>B: POST /chat (SSE)
-    B->>W: 建立 Workforce
+    R->>EB: POST /chat (SSE)
+    EB->>W: 建立 Workforce
     W->>W: 分解子任務 (to_sub_tasks)
     W-->>R: SSE: 子任務清單
     
@@ -203,19 +223,23 @@ sequenceDiagram
         A->>W: 回報結果 (task_state)
     end
     
-    W->>B: 生成總結
-    B-->>R: SSE: 任務完成
+    W->>EB: 生成總結
+    EB-->>R: SSE: 任務完成
     R->>U: 顯示結果
 ```
+
+**注意**：任務執行流程中的「Python Backend」指的是 `backend/`（嵌入式後端），由 Electron 自動啟動。
 
 ---
 
 ## 相關文件
 
 - [前端架構](./FRONTEND.md)
-- [後端 API 參考](./BACKEND_API.md)
+- [嵌入式後端 API](./BACKEND_API.md)
+- [Local Server 和 Cloud Service API](./SERVER_API.md)
 - [Electron IPC 通道](./ELECTRON_IPC.md)
 - [開發指令速查](./COMMANDS.md)
 - [資料模型](./DATA_MODELS.md)
 - [術語表](./GLOSSARY.md)
 - [開發環境設置](./GETTING_STARTED.md)
+- [常見問題 FAQ](./FAQ.md)
