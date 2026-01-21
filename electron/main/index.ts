@@ -1515,7 +1515,11 @@ async function createWindow() {
   // Load content
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
-    win.webContents.openDevTools();
+    // 只在明確設定環境變數時才開啟 DevTools
+    // 設定 OPEN_DEVTOOLS=true 來啟用
+    if (process.env.OPEN_DEVTOOLS === 'true') {
+      win.webContents.openDevTools();
+    }
   } else {
     win.loadFile(indexHtml);
   }

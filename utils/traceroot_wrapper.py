@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Callable
 import logging
+import sys
 from dotenv import load_dotenv
 
 # Try to import traceroot, but handle gracefully if not available
@@ -51,6 +52,19 @@ if TRACEROOT_AVAILABLE and traceroot.init():
     _init_logger = _get_traceroot_logger("traceroot_wrapper")
     _init_logger.info("TraceRoot initialized successfully", extra={"backend": "traceroot", "service_module": module_name})
 else:
+    # Configure root logger only when TraceRoot is not available
+    # This ensures all loggers output to stdout only, avoiding duplication when Electron captures both streams
+    _root_logger = logging.getLogger()
+    # Remove any existing handlers that might cause duplication
+    if _root_logger.handlers:
+        for handler in _root_logger.handlers[:]:
+            _root_logger.removeHandler(handler)
+    # Add a single stdout handler to root logger
+    _stdout_handler = logging.StreamHandler(sys.stdout)
+    _stdout_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    _root_logger.addHandler(_stdout_handler)
+    _root_logger.setLevel(logging.INFO)
+    
     # No-op implementations when TraceRoot is not configured
     def trace(*args, **kwargs):
         """No-op trace decorator."""
@@ -61,13 +75,10 @@ else:
     def get_logger(name: str = __name__):
         """Get standard Python logger when TraceRoot is disabled."""
         logger = logging.getLogger(name)
-        if not logger.handlers:
-            # Configure basic logging if no handlers exist
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
+        # Don't add handler here - rely on root logger configuration
+        # Set propagate to True so it uses root logger's handler
+        logger.propagate = True
+        logger.setLevel(logging.INFO)
         return logger
 
     def is_enabled() -> bool:

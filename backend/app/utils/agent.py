@@ -747,7 +747,7 @@ def agent_model(
             model_config_dict=model_config or None,
             **init_params,
         ),
-        # output_language=options.language,
+        output_language=options.language,
         tools=tools,
         agent_id=agent_id,
         prune_tool_calls_from_memory=prune_tool_calls_from_memory,
@@ -1780,7 +1780,7 @@ async def mcp_agent(options: Chat):
                 if k not in ["model_platform", "model_type", "api_key", "url"]
             },
         ),
-        # output_language=options.language,
+        output_language=options.language,
         tools=tools,
         agent_id=agent_id,
     )
