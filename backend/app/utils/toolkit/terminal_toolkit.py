@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
@@ -14,6 +15,23 @@ from app.service.task import process_task
 from utils import traceroot_wrapper as traceroot
 
 logger = traceroot.get_logger("terminal_toolkit")
+
+# 統一設定 UTF-8 編碼環境變數
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
+# Windows 特定：設定控制台編碼
+if sys.platform == 'win32':
+    try:
+        # 設定標準輸出編碼為 UTF-8
+        if sys.stdout:
+            sys.stdout.reconfigure(encoding='utf-8')
+        if sys.stderr:
+            sys.stderr.reconfigure(encoding='utf-8')
+        if sys.stdin:
+            sys.stdin.reconfigure(encoding='utf-8')
+    except (AttributeError, ValueError):
+        # Python < 3.7 或無法重新配置時忽略
+        pass
 
 
 @auto_listen_toolkit(BaseTerminalToolkit)
@@ -41,12 +59,31 @@ class TerminalToolkit(BaseTerminalToolkit, AbstractToolkit):
         if working_directory is None:
             working_directory = env("file_save_path", os.path.expanduser("~/.eigent/terminal/"))
 
+        # 確保環境變數設定 UTF-8 編碼
+        os.environ["PYTHONIOENCODING"] = "utf-8"
+        
+        # Windows 特定：嘗試設定終端編碼為 UTF-8
+        if sys.platform == 'win32':
+            try:
+                import subprocess
+                # 設定 CMD 編碼為 UTF-8（代碼頁 65001）
+                subprocess.run(
+                    ['chcp', '65001'],
+                    shell=True,
+                    capture_output=True,
+                    timeout=2,
+                    check=False
+                )
+            except Exception as e:
+                logger.debug(f"Failed to set Windows console encoding: {e}")
+
         logger.info("Initializing TerminalToolkit", extra={
             "api_task_id": api_task_id,
             "agent_name": self.agent_name,
             "working_directory": working_directory,
             "safe_mode": safe_mode,
-            "use_docker_backend": use_docker_backend
+            "use_docker_backend": use_docker_backend,
+            "encoding": os.environ.get("PYTHONIOENCODING", "not_set")
         })
 
         if TerminalToolkit._thread_pool is None:

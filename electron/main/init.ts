@@ -160,14 +160,21 @@ export async function startBackend(setPort?: (port: number) => void): Promise<an
     }
 
     const uvEnv = getUvEnv(currentVersion);
+    
+    // 從 process.env 讀取 VITE_SERVER_URL（由 Vite 自動注入），如果沒有則使用預設值
+    // 參考 VITE_DEV_SERVER_URL 的讀取方式
+    const serverUrl = process.env.VITE_SERVER_URL || "https://dev.eigent.ai/api";
+    
     const env = {
         ...process.env,
         ...uvEnv,
-        SERVER_URL: "https://dev.eigent.ai/api",
+        SERVER_URL: serverUrl,
         PYTHONIOENCODING: 'utf-8',
         PYTHONUNBUFFERED: '1',
         npm_config_cache: npmCacheDir,
     }
+    
+    log.info(`Using SERVER_URL: ${serverUrl}${process.env.VITE_SERVER_URL ? ' (from VITE_SERVER_URL)' : ' (default)'}`);
 
     const displayFilteredLogs = (data: String) => {
         if (!data) return;

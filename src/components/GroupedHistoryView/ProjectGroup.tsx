@@ -78,7 +78,10 @@ export default function ProjectGroup({
       if (firstTask) {
         const question = firstTask.question || project.last_prompt || "";
         const historyId = firstTask.id?.toString() || "";
-        const taskIdsList = [project.project_id];
+        // Use task.task_id instead of project.project_id for replay
+        // This ensures we query ChatStep with the correct task_id that was used during execution
+        // task.task_id is the actual task ID used during execution and stored in ChatStep table
+        const taskIdsList = project.tasks.map((task: any) => task.task_id).filter(Boolean) || [project.project_id];
         
         replayProject(projectStore, navigate, project.project_id, question, historyId, taskIdsList);
       } else {
